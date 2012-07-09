@@ -1439,6 +1439,7 @@ trait SwankProtocol extends Protocol {
        * Summary:
        *   Start a new debug session.
        * Arguments:
+       *   String: The debug mode ("start" with a new VM or "attach")
        *   String:The commandline to pass to the debugger. Of the form:
        *     "package.ClassName arg1 arg2....."
        * Return:
@@ -1450,8 +1451,8 @@ trait SwankProtocol extends Protocol {
        */
       case "swank:debug-start" => {
         form match {
-          case SExpList(head :: StringAtom(commandLine) :: body) => {
-            rpcTarget.rpcDebugStartVM(commandLine, callId)
+          case SExpList(head :: StringAtom(mode) :: StringAtom(commandLine) :: body) => {
+            rpcTarget.rpcDebugStartVM(mode, commandLine, callId)
           }
           case _ => oops
         }
