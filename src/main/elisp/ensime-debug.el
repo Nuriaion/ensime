@@ -54,6 +54,9 @@
 (defvar ensime-db-default-main-class nil
   "History of main class to debugger.")
 
+(defvar ensime-db-default-adress "localhost:9999"
+  "History of main class to debugger.")
+
 
 (defvar ensime-db-history nil
   "History of argument lists passed to jdb.")
@@ -717,6 +720,16 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
     (setq ensime-db-default-main-args debug-args)
     (concat debug-class " " debug-args)))
 
+(defun ensime-db-get-adress ()
+  "Get the command needed to launch a debugger, including all
+the current project's dependencies. Returns list of form (cmd [arg]*)"
+  (let* (
+   (debug-adress (read-string
+          "Adress: "
+          ensime-db-default-adress)))
+    (setq ensime-db-default-adress debug-adress)
+    (concat debug-adress)))
+
 
 (defun ensime-db-connection-closed (conn)
   (ensime-db-clear-breakpoint-overlays)
@@ -731,7 +744,7 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    conn
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
-     (ensime-rpc-debug-start cmd-line)
+     (ensime-rpc-debug-start "start" cmd-line)
 
      (add-hook 'ensime-db-thread-suspended-hook
 	       'ensime-db-update-backtraces)
@@ -740,6 +753,25 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 	       'ensime-db-connection-closed)
 
      (message "Starting debug VM...")
+     )))
+
+(defun ensime-db-attach ()
+  "Attach the debugger to an running VM"
+  (interactive)
+
+  (ensime-with-conn-interactive
+   conn
+   (let ((root-path (or (ensime-configured-project-root) "."))
+   (adress (ensime-db-get-adress)))
+     (ensime-rpc-debug-start "attach" adress)
+
+     (add-hook 'ensime-db-thread-suspended-hook
+         'ensime-db-update-backtraces)
+
+     (add-hook 'ensime-net-process-close-hooks
+         'ensime-db-connection-closed)
+
+     (message "Attaching to target VM...")
      )))
 
 

@@ -313,7 +313,7 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
                       withVM { vm ⇒
                         vm.dispose()
                       }
-                      val vm = new VM(commandLine)
+                      val vm = new VM(VmStart(), commandLine)
                       maybeVM = Some(vm)
                       vm.start()
                       project ! RPCResultEvent(toWF(true), callId)
@@ -322,10 +322,10 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
                       withVM { vm ⇒
                         vm.dispose()
                       }
-                      val vm = new VM(commandLine)
+                      val vm = new VM(VmAttach(), commandLine)
                     }
-                    case _ ⇒ {
-                      ?? ? 
+                    case x ⇒ {
+                    	throw new IllegalArgumentException("Wrong argument: " + x)
                     }
                   }
                 }
@@ -545,30 +545,51 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
     System.out.println("Finalizing debug manager actor.")
   }
 
-  private class VM(commandLine: String) {
+  sealed abstract class VmMode()
+  case class VmAttach() extends VmMode()
+  case class VmStart() extends VmMode()
+
+  private class VM(mode: VmMode, commandLine: String) {
     import scala.collection.JavaConversions._
 
     private val vm: VirtualMachine = {
-      val connector = Bootstrap.virtualMachineManager().defaultConnector
-      val arguments = connector.defaultArguments()
-      //arguments.get("home").setValue(jreHome);
-      val opts = arguments.get("options").value
-      val allVMOpts = (List(opts) ++ vmOptions).mkString(" ")
-      arguments.get("options").setValue(allVMOpts)
-      arguments.get("main").setValue(commandLine)
-      arguments.get("suspend").setValue("false")
-      //arguments.get("quote").setValue("\"");
-      //arguments.get("vmexec").setValue("java");
-      println("Using Connector: " + connector.name +
-        " : " + connector.description())
-      println("Connector class: " + connector.getClass.getName())
-      println("Debugger VM args: " + allVMOpts)
-      println("Debugger program args: " + commandLine)
-      connector.launch(arguments)
+      mode match {
+        case VmStart() ⇒ {
+          val connector = Bootstrap.virtualMachineManager().defaultConnector
+          val arguments = connector.defaultArguments()
 
-      val remoteVm = Bootstrap.virtualMachineManager().attachingConnectors().head
-      
-      remoteVm.attach(remoteVm.defaultArguments())
+          val opts = arguments.get("options").value
+          val allVMOpts = (List(opts) ++ vmOptions).mkString(" ")
+          arguments.get("options").setValue(allVMOpts)
+          arguments.get("main").setValue(commandLine)
+          arguments.get("suspend").setValue("false")
+          
+          println("Using Connector: " + connector.name +
+            " : " + connector.description())
+          println("Connector class: " + connector.getClass.getName())
+          println("Debugger VM args: " + allVMOpts)
+          println("Debugger program args: " + commandLine)
+          connector.launch(arguments)
+        }
+        case VmAttach() ⇒ {
+
+          val remoteVm = Bootstrap.virtualMachineManager().attachingConnectors().head
+          val arguments = remoteVm.defaultArguments()
+          
+          val opts = arguments.get("options").value
+          val allVMOpts = (List(opts) ++ vmOptions).mkString(" ")
+          arguments.get("options").setValue(allVMOpts)
+          arguments.get("main").setValue(commandLine)
+          arguments.get("suspend").setValue("false")
+          arguments.get("address").setValue(commandLine)
+          
+          
+          remoteVm.attach(remoteVm.defaultArguments())
+
+        }
+
+      }
+
     }
 
     // vm.setDebugTraceMode(VirtualMachine.TRACE_EVENTS)

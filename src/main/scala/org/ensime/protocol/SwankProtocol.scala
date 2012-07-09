@@ -1451,6 +1451,7 @@ trait SwankProtocol extends Protocol {
        */
       case "swank:debug-start" => {
         form match {
+          
           case SExpList(head :: StringAtom(mode) :: StringAtom(commandLine) :: body) => {
             rpcTarget.rpcDebugStartVM(mode, commandLine, callId)
           }

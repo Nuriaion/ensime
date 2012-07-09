@@ -2940,9 +2940,9 @@ any buffer visiting the given file."
   (ensime-eval
    `(swank:debug-value-for-id ,object-id)))
 
-(defun ensime-rpc-debug-start (command-line)
+(defun ensime-rpc-debug-start (mode command-line)
   (ensime-eval
-   `(swank:debug-start ,command-line)))
+   `(swank:debug-start, mode ,command-line)))
 
 (defun ensime-rpc-debug-stop ()
   (ensime-eval
