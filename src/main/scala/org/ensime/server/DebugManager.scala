@@ -323,6 +323,9 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
                         vm.dispose()
                       }
                       val vm = new VM(VmAttach(), commandLine)
+                      maybeVM = Some(vm)
+                      vm.start()
+                      project ! RPCResultEvent(toWF(true), callId)
                     }
                     case x ⇒ {
                     	throw new IllegalArgumentException("Wrong argument: " + x)
@@ -572,27 +575,29 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
           connector.launch(arguments)
         }
         case VmAttach() ⇒ {
+          println("Attach to running vm")
 
-          val remoteVm = Bootstrap.virtualMachineManager().attachingConnectors().head
-          val arguments = remoteVm.defaultArguments()
+          val vmm = Bootstrap.virtualMachineManager()
+          val connector = vmm.attachingConnectors().get(0)
           
-          val opts = arguments.get("options").value
-          val allVMOpts = (List(opts) ++ vmOptions).mkString(" ")
-          arguments.get("options").setValue(allVMOpts)
-          arguments.get("main").setValue(commandLine)
-          arguments.get("suspend").setValue("false")
-          arguments.get("address").setValue(commandLine)
-          
-          
-          remoteVm.attach(remoteVm.defaultArguments())
+          val env = connector.defaultArguments()
+          env.get("port").setValue("9999")
+          env.get("hostname").setValue("localhost")
 
+          println("Using Connector: " + connector.name +
+            " : " + connector.description())
+          println("Debugger arguments: " + env)
+          
+          val vm = connector.attach(env)
+          println("VM: " + vm.description + ", " + vm)
+          vm
         }
 
       }
 
     }
 
-    // vm.setDebugTraceMode(VirtualMachine.TRACE_EVENTS)
+    vm.setDebugTraceMode(VirtualMachine.TRACE_EVENTS)
     val evtQ = new VMEventManager(vm.eventQueue())
     val erm = vm.eventRequestManager();
     {
@@ -618,14 +623,14 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
 
     private val fileToUnits = HashMap[String, HashSet[ReferenceType]]()
     private val process = vm.process();
-    private val outputMon = new MonitorOutput(process.getErrorStream());
-    private val inputMon = new MonitorOutput(process.getInputStream());
+    //private val outputMon = new MonitorOutput(process.getErrorStream());
+    //private val inputMon = new MonitorOutput(process.getInputStream());
     private val savedObjects = new HashMap[Long, ObjectReference]()
 
     def start() {
       evtQ.start()
-      outputMon.start()
-      inputMon.start()
+      //outputMon.start()
+      //inputMon.start()
     }
 
     def remember(value: Value): Value = {
