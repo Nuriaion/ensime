@@ -51,7 +51,8 @@ import com.sun.jdi.event._
 
 case class DebuggerShutdownEvent()
 
-case class DebugStartVMReq(mode: String, commandLine: String)
+case class DebugStartVMReq(commandLine: String)
+case class DebugAttachVMReq(hostname: String, port: String)
 case class DebugStopVMReq()
 case class DebugRunReq()
 case class DebugContinueReq(threadId: Long)
@@ -289,8 +290,8 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
                 }
                 case e: ClassUnloadEvent ⇒ {}
                 case e: MethodEntryEvent ⇒ {}
-                case e: MethodExitEvent  ⇒ {}
-                case _                   ⇒ {}
+                case e: MethodExitEvent ⇒ {}
+                case _ ⇒ {}
               }
 
             } catch {
@@ -307,30 +308,25 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
           case RPCRequestEvent(req: Any, callId: Int) ⇒ {
             try {
               req match {
-                case DebugStartVMReq(mode: String, commandLine: String) ⇒ {
-                  mode match {
-                    case "start" ⇒ {
-                      withVM { vm ⇒
-                        vm.dispose()
-                      }
-                      val vm = new VM(VmStart(), commandLine)
-                      maybeVM = Some(vm)
-                      vm.start()
-                      project ! RPCResultEvent(toWF(true), callId)
-                    }
-                    case "attach" ⇒ {
-                      withVM { vm ⇒
-                        vm.dispose()
-                      }
-                      val vm = new VM(VmAttach(), commandLine)
-                      maybeVM = Some(vm)
-                      vm.start()
-                      project ! RPCResultEvent(toWF(true), callId)
-                    }
-                    case x ⇒ {
-                    	throw new IllegalArgumentException("Wrong argument: " + x)
-                    }
+                case DebugStartVMReq(commandLine: String) ⇒ {
+                  withVM { vm ⇒
+                    vm.dispose()
                   }
+                  val vm = new VM(VmStart(commandLine))
+                  maybeVM = Some(vm)
+                  vm.start()
+                  project ! RPCResultEvent(toWF(true), callId)
+                }
+
+                case DebugAttachVMReq(hostname, port) ⇒ {
+                  withVM { vm ⇒
+                    vm.dispose()
+                  }
+                  val vm = new VM(VmAttach(hostname, port))
+                  maybeVM = Some(vm)
+                  vm.start()
+                  project ! RPCResultEvent(toWF(true), callId)
+
                 }
 
                 case DebugActiveVMReq() ⇒ {
@@ -549,15 +545,15 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
   }
 
   sealed abstract class VmMode()
-  case class VmAttach() extends VmMode()
-  case class VmStart() extends VmMode()
+  case class VmAttach(hostname:String, port:String) extends VmMode()
+  case class VmStart(commandLine: String) extends VmMode()
 
-  private class VM(mode: VmMode, commandLine: String) {
+  private class VM(mode:VmMode) {
     import scala.collection.JavaConversions._
 
     private val vm: VirtualMachine = {
       mode match {
-        case VmStart() ⇒ {
+        case VmStart(commandLine) ⇒ {
           val connector = Bootstrap.virtualMachineManager().defaultConnector
           val arguments = connector.defaultArguments()
 
@@ -566,7 +562,7 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
           arguments.get("options").setValue(allVMOpts)
           arguments.get("main").setValue(commandLine)
           arguments.get("suspend").setValue("false")
-          
+
           println("Using Connector: " + connector.name +
             " : " + connector.description())
           println("Connector class: " + connector.getClass.getName())
@@ -574,20 +570,20 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
           println("Debugger program args: " + commandLine)
           connector.launch(arguments)
         }
-        case VmAttach() ⇒ {
+        case VmAttach(hostname, port) ⇒ {
           println("Attach to running vm")
 
           val vmm = Bootstrap.virtualMachineManager()
           val connector = vmm.attachingConnectors().get(0)
-          
+
           val env = connector.defaultArguments()
-          env.get("port").setValue("9999")
-          env.get("hostname").setValue("localhost")
+          env.get("port").setValue(port)
+          env.get("hostname").setValue(hostname)
 
           println("Using Connector: " + connector.name +
             " : " + connector.description())
           println("Debugger arguments: " + env)
-          
+	  println("Attach to VM")
           val vm = connector.attach(env)
           println("VM: " + vm.description + ", " + vm)
           vm
@@ -636,7 +632,7 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
     def remember(value: Value): Value = {
       value match {
         case v: ObjectReference ⇒ remember(v)
-        case _                  ⇒ value
+        case _ ⇒ value
       }
     }
 
@@ -737,21 +733,21 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
     // us what we want...
     def valueToString(value: Value): String = {
       value match {
-        case v: BooleanValue    ⇒ v.value().toString()
-        case v: ByteValue       ⇒ v.value().toString()
-        case v: CharValue       ⇒ "'" + v.value().toString() + "'"
-        case v: DoubleValue     ⇒ v.value().toString() + "d"
-        case v: FloatValue      ⇒ v.value().toString() + "f"
-        case v: IntegerValue    ⇒ v.value().toString()
-        case v: LongValue       ⇒ v.value().toString() + "l"
-        case v: ShortValue      ⇒ v.value().toString()
-        case v: VoidValue       ⇒ "void"
+        case v: BooleanValue ⇒ v.value().toString()
+        case v: ByteValue ⇒ v.value().toString()
+        case v: CharValue ⇒ "'" + v.value().toString() + "'"
+        case v: DoubleValue ⇒ v.value().toString() + "d"
+        case v: FloatValue ⇒ v.value().toString() + "f"
+        case v: IntegerValue ⇒ v.value().toString()
+        case v: LongValue ⇒ v.value().toString() + "l"
+        case v: ShortValue ⇒ v.value().toString()
+        case v: VoidValue ⇒ "void"
         case v: StringReference ⇒ "\"" + v.value().toString() + "\""
         case v: ArrayReference ⇒ {
           "Array[" + v.getValues().take(3).map(valueToString).mkString(", ") + "]"
         }
         case v: ObjectReference ⇒ "instance of " + v.referenceType().name()
-        case _                  ⇒ "NA"
+        case _ ⇒ "NA"
       }
     }
 
@@ -854,10 +850,10 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
     def makeDebugValue(value: Value): DebugValue = {
       if (value == null) makeDebugNull()
       else value match {
-        case value: ArrayReference  ⇒ makeDebugArr(value)
+        case value: ArrayReference ⇒ makeDebugArr(value)
         case value: StringReference ⇒ makeDebugStr(value)
         case value: ObjectReference ⇒ makeDebugObj(value)
-        case value: PrimitiveValue  ⇒ makeDebugPrim(value)
+        case value: PrimitiveValue ⇒ makeDebugPrim(value)
       }
     }
 
@@ -894,7 +890,7 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
     def valueForIndex(objectId: Long, index: Int): Option[DebugValue] = {
       (savedObjects.get(objectId) match {
         case Some(arr: ArrayReference) ⇒ Some(remember(arr.getValue(index)))
-        case None                      ⇒ None
+        case None ⇒ None
       }).map(makeDebugValue(_))
     }
 

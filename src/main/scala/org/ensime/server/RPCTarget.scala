@@ -102,8 +102,11 @@ trait RPCTarget { self: Project =>
     analyzer ! RPCRequestEvent(SymbolDesignationsReq(file, start, end, requestedTypes), callId)
   }
 
-  def rpcDebugStartVM(mode:String, commandLine: String, callId: Int) {
-    getOrStartDebugger ! RPCRequestEvent(DebugStartVMReq(mode, commandLine), callId)
+  def rpcDebugStartVM(commandLine: String, callId: Int) {
+    getOrStartDebugger ! RPCRequestEvent(DebugStartVMReq(commandLine), callId)
+  }
+ def rpcDebugAttachVM(hostname:String, port:String, callId: Int) {
+    getOrStartDebugger ! RPCRequestEvent(DebugAttachVMReq(hostname,port), callId)
   }
   def rpcDebugStopVM(callId: Int) {
     getOrStartDebugger ! RPCRequestEvent(DebugStopVMReq(), callId)

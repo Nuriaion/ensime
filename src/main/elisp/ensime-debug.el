@@ -54,9 +54,11 @@
 (defvar ensime-db-default-main-class nil
   "History of main class to debugger.")
 
-(defvar ensime-db-default-adress "localhost:9999"
-  "History of main class to debugger.")
+(defvar ensime-db-default-hostname "localhost"
+  "History of vm hostname.")
 
+(defvar ensime-db-default-port "9000"
+  "History of vm port.")
 
 (defvar ensime-db-history nil
   "History of argument lists passed to jdb.")
@@ -720,16 +722,25 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
     (setq ensime-db-default-main-args debug-args)
     (concat debug-class " " debug-args)))
 
-(defun ensime-db-get-adress ()
-  "Get the command needed to launch a debugger, including all
-the current project's dependencies. Returns list of form (cmd [arg]*)"
+(defun ensime-db-get-hostname ()
+  "Get the target hostname"
   (let* (
-   (debug-adress (read-string
-          "Adress: "
-          ensime-db-default-adress)))
-    (setq ensime-db-default-adress debug-adress)
-    (concat debug-adress)))
+   (debug-hostname (read-string
+          "Hostname: "
+          ensime-db-default-hostname)))
+    (setq ensime-db-default-hostname debug-hostname)
+        (message "get hostname")
+    (debug-hostname)))
 
+(defun ensime-db-get-port ()
+  "Get the target port"
+  (let* (
+   (debug-port (read-string
+          "Port: "
+          ensime-db-default-port)))
+    (setq ensime-db-default-port debug-port)
+        (message "get port")
+    (debug-port)))
 
 (defun ensime-db-connection-closed (conn)
   (ensime-db-clear-breakpoint-overlays)
@@ -744,8 +755,8 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    conn
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
-     (ensime-rpc-debug-start "start" cmd-line)
-
+     (ensime-rpc-debug-start  cmd-line)
+     
      (add-hook 'ensime-db-thread-suspended-hook
 	       'ensime-db-update-backtraces)
 
@@ -761,21 +772,17 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
 
   (ensime-with-conn-interactive
    conn
-   (let ((root-path (or (ensime-configured-project-root) "."))
-   (adress (ensime-db-get-adress)))
-     (ensime-rpc-debug-start "attach" adress)
-
+   (let ((hostname (ensime-db-get-hostname))
+	 (port (ensime-db-get-port)))
+     (ensime-rpc-debug-attach hostname port)
+     
      (add-hook 'ensime-db-thread-suspended-hook
-         'ensime-db-update-backtraces)
+	       'ensime-db-update-backtraces)
 
      (add-hook 'ensime-net-process-close-hooks
-         'ensime-db-connection-closed)
-
+	       'ensime-db-connection-closed)
+     
      (message "Attaching to target VM...")
      )))
-
-
-
-
 
 (provide 'ensime-debug)
