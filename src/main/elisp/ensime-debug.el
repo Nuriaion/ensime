@@ -57,7 +57,7 @@
 (defvar ensime-db-default-hostname "localhost"
   "History of vm hostname.")
 
-(defvar ensime-db-default-port "9000"
+(defvar ensime-db-default-port "9999"
   "History of vm port.")
 
 (defvar ensime-db-history nil
@@ -730,7 +730,7 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
           ensime-db-default-hostname)))
     (setq ensime-db-default-hostname debug-hostname)
         (message "get hostname")
-    (debug-hostname)))
+    (concat debug-hostname)))
 
 (defun ensime-db-get-port ()
   "Get the target port"
@@ -740,7 +740,7 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
           ensime-db-default-port)))
     (setq ensime-db-default-port debug-port)
         (message "get port")
-    (debug-port)))
+    (concat debug-port)))
 
 (defun ensime-db-connection-closed (conn)
   (ensime-db-clear-breakpoint-overlays)
@@ -755,6 +755,7 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    conn
    (let ((root-path (or (ensime-configured-project-root) "."))
 	 (cmd-line (ensime-db-get-cmd-line)))
+
      (ensime-rpc-debug-start  cmd-line)
      
      (add-hook 'ensime-db-thread-suspended-hook
@@ -767,6 +768,28 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
      )))
 
 (defun ensime-db-attach ()
+  "Run a Scala interpreter in an Emacs buffer"
+  (interactive)
+
+  (ensime-with-conn-interactive
+   conn
+   (let (
+   (hostname (ensime-db-get-hostname))
+   (port (ensime-db-get-port)))
+
+     (ensime-rpc-debug-attach hostname port)
+     
+     (add-hook 'ensime-db-thread-suspended-hook
+         'ensime-db-update-backtraces)
+
+     (add-hook 'ensime-net-process-close-hooks
+         'ensime-db-connection-closed)
+
+     (message "Starting debug VM...")
+     )))
+
+
+(defun ensime-db-attach_save ()
   "Attach the debugger to an running VM"
   (interactive)
 
@@ -774,8 +797,9 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
    conn
    (let ((hostname (ensime-db-get-hostname))
 	 (port (ensime-db-get-port)))
+
      (ensime-rpc-debug-attach hostname port)
-     
+   
      (add-hook 'ensime-db-thread-suspended-hook
 	       'ensime-db-update-backtraces)
 
