@@ -1,5 +1,4 @@
-#!/bin/bash
-echo "asdf"
+#!bash
 WARNING="This file was generated using gen_manual.sh. Do not manually edit!"
 MODIFIED_DATE=`date "+%m/%d/%Y"`
 PROTOCOL_SOURCE="../src/main/scala/org/ensime/protocol/SwankProtocol.scala"
@@ -10,8 +9,6 @@ PROTOCOL_EVENTS_DOCS=`python gen_protocol_docs.py events $PROTOCOL_SOURCE`
 PROTOCOL_VERSION=`python gen_protocol_docs.py version $PROTOCOL_SOURCE`
 PROTOCOL_CHANGE_LOG=`python gen_protocol_docs.py changelog $PROTOCOL_SOURCE`
 CONFIG_DOCS=`python gen_protocol_docs.py property $CONFIG_SOURCE`
-
-echo "fdas"
 
 m4 --define=NO_MANUAL_EDIT_WARNING="$WARNING" \
     --define=PROTOCOL_DATA_DOCUMENTATION="$PROTOCOL_DATA_DOCS" \
