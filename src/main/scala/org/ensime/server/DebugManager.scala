@@ -77,6 +77,7 @@ case class DebugBreakEvent(threadId: Long,
   threadName: String, pos: SourcePosition) extends DebugEvent
 case class DebugVMDeathEvent() extends DebugEvent
 case class DebugVMStartEvent() extends DebugEvent
+case class DebugVMAttachExpection(exception:String) extends DebugEvent
 case class DebugVMDisconnectEvent() extends DebugEvent
 case class DebugExceptionEvent(excId: Long,
   threadId: Long, threadName: String) extends DebugEvent
@@ -322,11 +323,19 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
                   withVM { vm ⇒
                     vm.dispose()
                   }
-                  val vm = new VM(VmAttach(hostname, port))
-                  maybeVM = Some(vm)
-                  vm.start()
-                  project ! RPCResultEvent(toWF(true), callId)
-
+                  try { 
+                    val vm = new VM(VmAttach(hostname, port))
+                    maybeVM = Some(vm)
+                    vm.start()
+                    project ! RPCResultEvent(toWF(true), callId)
+                  } catch {
+                    case e: Exception => {
+                      maybeVM = None
+                      println("Couldn't attach to target VM.")
+                      println("e: " + e)
+                      project ! RPCResultEvent(toWF(DebugVMAttachExpection(e.toString)), callId)
+                    }
+                  }
                 }
 
                 case DebugActiveVMReq() ⇒ {
@@ -554,7 +563,7 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
     private val vm: VirtualMachine = {
       mode match {
         case VmStart(commandLine) ⇒ {
-          val connector = Bootstrap.virtualMachineManager().defaultConnector
+          val connector = Bootstrap.virtualMachineManager().defaultConnector()
           val arguments = connector.defaultArguments()
 
           val opts = arguments.get("options").value

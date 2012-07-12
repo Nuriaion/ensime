@@ -788,25 +788,4 @@ the current project's dependencies. Returns list of form (cmd [arg]*)"
      (message "Starting debug VM...")
      )))
 
-
-(defun ensime-db-attach_save ()
-  "Attach the debugger to an running VM"
-  (interactive)
-
-  (ensime-with-conn-interactive
-   conn
-   (let ((hostname (ensime-db-get-hostname))
-	 (port (ensime-db-get-port)))
-
-     (ensime-rpc-debug-attach hostname port)
-   
-     (add-hook 'ensime-db-thread-suspended-hook
-	       'ensime-db-update-backtraces)
-
-     (add-hook 'ensime-net-process-close-hooks
-	       'ensime-db-connection-closed)
-     
-     (message "Attaching to target VM...")
-     )))
-
 (provide 'ensime-debug)
