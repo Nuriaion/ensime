@@ -545,10 +545,10 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
   }
 
   sealed abstract class VmMode()
-  case class VmAttach(hostname:String, port:String) extends VmMode()
+  case class VmAttach(hostname: String, port: String) extends VmMode()
   case class VmStart(commandLine: String) extends VmMode()
 
-  private class VM(mode:VmMode) {
+  private class VM(mode: VmMode) {
     import scala.collection.JavaConversions._
 
     private val vm: VirtualMachine = {
@@ -583,7 +583,7 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
           println("Using Connector: " + connector.name +
             " : " + connector.description())
           println("Debugger arguments: " + env)
-	  println("Attach to VM")
+          println("Attach to VM")
           val vm = connector.attach(env)
           println("VM: " + vm.description + ", " + vm)
           vm
@@ -619,14 +619,16 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
 
     private val fileToUnits = HashMap[String, HashSet[ReferenceType]]()
     private val process = vm.process();
-    //private val outputMon = new MonitorOutput(process.getErrorStream());
-    //private val inputMon = new MonitorOutput(process.getInputStream());
+    private val monitor = mode match {
+      case VmAttach(_, _) => Nil
+      case VmStart(_) => List(new MonitorOutput(process.getErrorStream()),
+        new MonitorOutput(process.getInputStream()))
+    }
     private val savedObjects = new HashMap[Long, ObjectReference]()
 
     def start() {
       evtQ.start()
-      //outputMon.start()
-      //inputMon.start()
+      monitor.map{_.start()}
     }
 
     def remember(value: Value): Value = {
