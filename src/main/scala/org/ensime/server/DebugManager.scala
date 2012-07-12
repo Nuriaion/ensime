@@ -544,9 +544,9 @@ class DebugManager(project: Project, protocol: ProtocolConversions,
     System.out.println("Finalizing debug manager actor.")
   }
 
-  sealed abstract class VmMode()
-  case class VmAttach(hostname: String, port: String) extends VmMode()
-  case class VmStart(commandLine: String) extends VmMode()
+  private sealed abstract class VmMode()
+  private case class VmAttach(hostname: String, port: String) extends VmMode()
+  private case class VmStart(commandLine: String) extends VmMode()
 
   private class VM(mode: VmMode) {
     import scala.collection.JavaConversions._
